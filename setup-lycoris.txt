@@ -1,0 +1,146 @@
+# run instance
+
+# create workspace folder and navigate there
+
+# copy the github repo of simpletuner
+    https://github.com/bobtest141095/SimpleTuner.git
+
+# apply installation guide from here (we can skip configs and create it after)
+    https://github.com/bobtest141095/SimpleTuner/blob/main/documentation/quickstart/FLUX.md
+
+# copy the images from our cdn to the workspace folder, like workspace/images-dataset
+
+# we need to preprocess the images
+    - check the format, size. I think it should be 1024 and png/jpg
+    - add the caption for each image with the trigger word at the beginning (i.e. bob123 with long hair and no shirt is taking a selfie). The caption should be in .txt format with the same name of the image 
+
+# prepare multidatabackend configs
+    - create a file config.json in workspace/simpletuner/multidatabackend.json
+    - append the config
+        ```
+            [
+                {
+                    "id": "my-dataset-1024",
+                    "type": "local",
+                    "instance_data_dir": "/home/vic/Desktop/work/simple_tuner_1/datasets/my-dataset",
+                    "crop": false,
+                    "crop_style": "random",
+                    "minimum_image_size": 128,
+                    "resolution": 1024,
+                    "resolution_type": "pixel_area",
+                    "repeats": 10,
+                    "metadata_backend": "discovery",
+                    "instance_prompt": "zikki man",
+                    "caption_strategy": "textfile",
+                    "cache_dir_vae": "cache//vae-1024"
+                },
+                {
+                    "id": "my-dataset-1024-crop",
+                    "type": "local",
+                    "instance_data_dir": "/home/vic/Desktop/work/simple_tuner_1/datasets/my-dataset",
+                    "crop": true,
+                    "crop_style": "center",
+                    "minimum_image_size": 128,
+                    "resolution": 1024,
+                    "resolution_type": "pixel_area",
+                    "repeats": 10,
+                    "metadata_backend": "discovery",
+                    "instance_prompt": "zikki man",
+                    "caption_strategy": "textfile",
+                    "cache_dir_vae": "cache//vae-1024-crop"
+                },
+                {
+                    "id": "text-embed-cache",
+                    "dataset_type": "text_embeds",
+                    "default": true,
+                    "type": "local",
+                    "cache_dir": "cache//text"
+                }
+            ]
+
+        ```
+        - change options:
+            # in the first and second configs
+            - "cache_dir_vae": absolute path to cache, (this will be created) i.e. /home/user/Desktop/work/simple_tuner/cache/vae/flux/default_dataset
+            - "instance_data_dir": absolute path to image dataset with captions that we downloaded, i.e. /home/user/Desktop/work/simple_tuner/datasets/my-dataset
+            - "instance_prompt": trigger word
+            # in the third configs
+            - "cache_dir" :  (this will be created) /home/user/Desktop/work/simple_tuner/cache/text/flux/default_dataset
+
+# prepare lycoris_config configs
+    - create a file config.json in workspace/simpletuner/lycoris_config.json
+    - append the config
+        ```
+            {
+                "algo": "lora",
+                "multiplier": 1.0,
+                "linear_dim": 16,
+                "linear_alpha": 32,
+                "apply_preset": {
+                    "target_module": [
+                        "Attention",
+                        "FeedForward"
+                    ],
+                    "module_algo_map": {
+                        "Attention": {
+                            "factor": 16
+                        },
+                        "FeedForward": {
+                            "factor": 8
+                        }
+                    }
+                }
+            }
+        ```
+
+# prepare root configs
+    - create a file config.json in workspace/simpletuner/config.json
+    - append the config
+        ```
+        {
+        "--resume_from_checkpoint": "latest",
+        "--data_backend_config": "config/multidatabackend.json",
+        "--aspect_bucket_rounding": 2,
+        "--seed": 42,
+        "--minimum_image_size": 0,
+        "--disable_benchmark": false,
+        "--output_dir": "output/models",
+        "--lora_type": "lycoris",
+        "--lycoris_config": "config/lycoris_config.json",
+        "--max_train_steps": 3500,
+        "--num_train_epochs": 0,
+        "--checkpointing_steps": 200,
+        "--checkpoints_total_limit": 20,
+        "--model_type": "lora",
+        "--pretrained_model_name_or_path": "black-forest-labs/FLUX.1-dev",
+        "--model_family": "flux",
+        "--train_batch_size": 1,
+        "--gradient_checkpointing": "true",
+        "--caption_dropout_probability": 0.0,
+        "--resolution_type": "pixel_area",
+        "--resolution": "1024",
+        "--validation_seed": 42,
+        "--validation_steps": 200,
+        "--validation_resolution": "1024x1024,832x1216",
+        "--validation_guidance": 3.0,
+        "--validation_guidance_rescale": "0.0",
+        "--validation_num_inference_steps": "20",
+        "--validation_prompt": "a photo of zikki man",
+        "--mixed_precision": "bf16",
+        "--optimizer": "adamw_bf16",
+        "--learning_rate": "1e-4",
+        "--lr_scheduler": "constant",
+        "--lr_warmup_steps": 100,
+        "--base_model_precision": "int8-quanto",
+        "--validation_torch_compile": "false"
+        }
+        ```
+    - change options:
+        "max_train_steps": 3500 #by default
+        "lr_scheduler": "constant" #by default
+        "validation_prompt": "a photo of <change-to-trigger word> <man|woman>"
+
+# run ./train.sh
+
+
+# we need to modify that repo to send process status like every minutes with system params to our backend API. or just store the progress somewhere and we can use ssh to get that file..
